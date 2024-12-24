@@ -1,4 +1,4 @@
-Azure ARM Template CI/CD Pipeline
+#Azure ARM Template CI/CD Pipeline
 Project Overview
 
 This project implements a Continuous Integration and Continuous Deployment (CI/CD) pipeline for exporting and deploying Azure Resource Manager (ARM) templates. The pipeline is designed to automate the process of exporting ARM templates for a resource group, publishing them as build artifacts, and then deploying them to an Azure environment.
