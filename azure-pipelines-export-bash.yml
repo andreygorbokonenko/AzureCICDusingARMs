@@ -1,0 +1,69 @@
+trigger: none  # No automatic triggers on changes in the repository. You can change this to 'branches' if you want the pipeline to run on specific branch changes.
+pr: none  # No automatic triggers for pull requests. Similar to trigger, you can adjust this to react to PR events.
+
+pool:
+  name: 'Default'  # Specifies that the pipeline will run on the default agent pool in Azure DevOps. You can replace 'Default' with your custom pool name if needed.
+
+# Define Build and Deploy Stages
+stages:
+  
+  # Build Stage: Export and Publish ARM Template
+  - stage: Build  # Stage definition starts here. The 'Build' stage is responsible for exporting the ARM template.
+    jobs:
+      - job: ExportAndPublish  # This job will export the ARM template and publish it as an artifact.
+        steps:
+          - checkout: self  # Ensure that the repository is checked out before proceeding with any tasks. This pulls the latest code.
+
+          # Task to run a custom script for exporting the resource group ARM template using Azure CLI
+          - task: AzureCLI@2  # Azure CLI task version 2
+            inputs:
+              azureSubscription: 'Azure subscription 1'  # Specify the Azure subscription to be used for the task. Replace this with your actual subscription name.
+              scriptType: 'bash'  # The type of script to execute (bash script in this case)
+              scriptLocation: 'scriptPath'  # Location of the script. 'scriptPath' allows you to point to a specific file.
+              scriptPath: '$(Build.SourcesDirectory)/scripts/export_template.sh'  # Path to the script to export the ARM template. Adjust the file path based on your repository structure.
+            displayName: 'Export Resource Group Template'  # Display name for the task, visible in the pipeline UI.
+
+          # Task to publish the exported ARM template as an artifact
+          - task: PublishBuildArtifacts@1  # Azure DevOps task to publish build artifacts
+            inputs:
+              PathtoPublish: '$(Build.SourcesDirectory)/rg_resourcegroup1_template.json'  # Path to the exported ARM template JSON file.
+              ArtifactName: 'ResourceGroupTemplate'  # The name that will be given to the artifact for later use.
+              publishLocation: 'Container'  # Artifact will be stored in the pipeline's artifact container for later stages.
+            displayName: 'Publish ARM Template as Artifact'  # Display name for this task.
+
+          # List the files in the source directory to verify everything is in place
+          - script: |
+              echo "Listing contents of $(Build.SourcesDirectory)"
+              ls -l $(Build.SourcesDirectory)  # Bash command to list the files in the source directory. Useful for debugging.
+            displayName: 'List files in Source Directory'  # Display name for this script task.
+
+  # Deploy Stage: Deploy ARM Template
+  - stage: Deploy  # This stage handles the deployment of the exported ARM template.
+    dependsOn: Build  # The Deploy stage will only run after the Build stage completes successfully.
+    jobs:
+      - job: DeployResourceGroupTemplate  # This job handles the deployment of the ARM template.
+        steps:
+          # Task to download the published artifact from the Build stage
+          - task: DownloadBuildArtifacts@0  # Azure DevOps task to download build artifacts.
+            inputs:
+              buildType: 'current'  # Specifies to download artifacts from the current pipeline run.
+              downloadType: 'specific'  # Download a specific artifact from the build.
+              artifactName: 'ResourceGroupTemplate'  # Name of the artifact to download (defined in the Build stage).
+              downloadPath: '$(Build.ArtifactStagingDirectory)'  # Path where the artifact will be downloaded.
+            displayName: 'Download Exported Template Artifact'  # Display name for the task.
+
+          # List the files in the artifact staging directory for verification
+          - script: |
+              echo "Listing contents of $(Build.ArtifactStagingDirectory)"
+              ls -l $(Build.ArtifactStagingDirectory)  # Command to list files in the artifact staging directory.
+            displayName: 'List files in Artifact Staging Directory'  # Display name for this task.
+
+          # Task to deploy the ARM template using Azure CLI
+          - task: AzureCLI@2  # Azure CLI task version 2.
+            inputs:
+              azureSubscription: 'Azure subscription 1'  # The Azure subscription for deploying the ARM template.
+              scriptType: 'bash'  # The type of script (bash script).
+              scriptLocation: 'scriptPath'  # The location of the script to execute.
+              scriptPath: '$(Build.SourcesDirectory)/scripts/deploy_template.sh'  # Path to the script that handles the deployment.
+              arguments: '$(Build.ArtifactStagingDirectory)/ResourceGroupTemplate/rg_resourcegroup1_template.json rg_resourcegroup2 $(Build.SourcesDirectory)/AzureParameters/parameters.json'  # Arguments passed to the deployment script, including the ARM template and parameter files.
+            displayName: 'Deploy Resource Group Template'  # Display name for the task.
