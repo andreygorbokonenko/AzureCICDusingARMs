@@ -1,0 +1,76 @@
+name: Build and Deploy ARM Template
+
+# Define the events that will trigger this workflow
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on pushes to the 'main' branch
+  pull_request:
+    branches:
+      - main  # Trigger the workflow on pull requests targeting the 'main' branch
+
+jobs:
+  # Build Job: Export and Publish ARM Template
+  build:
+    runs-on: ubuntu-latest  # Choose the appropriate runner for the job (Ubuntu, Windows, etc.)
+
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3  # This action checks out the code from the repository
+
+      # Export ARM Template using Azure CLI
+      - name: Export Resource Group Template
+        uses: azure/cli-action@v1  # GitHub Action to run Azure CLI commands
+        with:
+          inlineScript: |
+            az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION }}  # Set Azure subscription using a secret
+            az group export --name rg_resourcegroup1 --output json > rg_resourcegroup1_template.json
+        env:
+          AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}  # Use GitHub secrets to store your subscription ID
+
+      # Publish ARM Template as an artifact
+      - name: Publish ARM Template Artifact
+        uses: actions/upload-artifact@v3  # GitHub Action to upload the artifact
+        with:
+          name: ResourceGroupTemplate  # Artifact name
+          path: rg_resourcegroup1_template.json  # Path to the exported ARM template
+
+      # List files in the working directory (for debugging purposes)
+      - name: List files in Source Directory
+        run: |
+          echo "Listing contents of the directory"
+          ls -l
+
+  # Deploy Job: Deploy ARM Template
+  deploy:
+    runs-on: ubuntu-latest  # Choose the appropriate runner for the job (Ubuntu, Windows, etc.)
+    needs: build  # Ensure the deploy job runs after the build job is complete
+
+    steps:
+      # Checkout the repository again
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Download the published artifact from the build job
+      - name: Download ARM Template Artifact
+        uses: actions/download-artifact@v3  # GitHub Action to download artifacts from previous jobs
+        with:
+          name: ResourceGroupTemplate  # Name of the artifact to download
+          path: ./  # Directory to store the downloaded artifact
+
+      # List files in the artifact directory (for debugging purposes)
+      - name: List files in Artifact Staging Directory
+        run: |
+          echo "Listing contents of the directory"
+          ls -l
+
+      # Deploy ARM Template using Azure CLI
+      - name: Deploy Resource Group Template
+        uses: azure/cli-action@v1  # GitHub Action to run Azure CLI commands
+        with:
+          inlineScript: |
+            az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION }}  # Set Azure subscription using a secret
+            az deployment group create --resource-group rg_resourcegroup2 --template-file rg_resourcegroup1_template.json --parameters @${{ github.workspace }}/AzureParameters/parameters.json
+        env:
+          AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}  # Use GitHub secrets to store your subscription ID
