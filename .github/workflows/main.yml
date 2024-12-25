@@ -21,7 +21,7 @@ jobs:
 
       # Export ARM Template using Azure CLI
       - name: Export Resource Group Template
-        uses: azure/azure-cli-action@v1  # GitHub Action to run Azure CLI commands
+        uses: azure/cli@v2  # GitHub Action to run Azure CLI commands
         with:
           inlineScript: |
             az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}  # Set Azure subscription using a secret
@@ -67,7 +67,7 @@ jobs:
 
       # Deploy ARM Template using Azure CLI
       - name: Deploy Resource Group Template
-        uses: azure/azure-cli-action@v1  # GitHub Action to run Azure CLI commands
+        uses: azure/cli@v2  # GitHub Action to run Azure CLI commands
         with:
           inlineScript: |
             az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION }}  # Set Azure subscription using a secret
