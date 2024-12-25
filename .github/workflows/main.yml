@@ -24,10 +24,10 @@ jobs:
         uses: azure/cli-action@v1  # GitHub Action to run Azure CLI commands
         with:
           inlineScript: |
-            az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION }}  # Set Azure subscription using a secret
-            az group export --name rg_resourcegroup1 --output json > rg_resourcegroup1_template.json
+            az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}  # Set Azure subscription using a secret
+            az group export --name ${{ vars.AZURE_RESOURCE_GROUP_SOURCE_VARIABLE }} --output json > ${{ vars.AZURE_RESOURCE_JSON_TEMPLATE_NAME_VARIABLE }}
         env:
-          AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}  # Use GitHub secrets to store your subscription ID
+          AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}  # Use GitHub secrets to store your subscription ID
 
       # Publish ARM Template as an artifact
       - name: Publish ARM Template Artifact
